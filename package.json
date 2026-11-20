@@ -1,0 +1,36 @@
+{
+  "name": "@robertpitt/timezone-db",
+  "version": "0.1.0",
+  "description": "A compact offline timezone boundary database and a portable JavaScript lookup client.",
+  "type": "module",
+  "license": "UNLICENSED",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/robertpitt/timezone-db.git"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/TimezoneClient.d.ts",
+      "default": "./dist/TimezoneClient.js"
+    },
+    "./world.tzdb": "./dist/world.tzdb"
+  },
+  "files": [
+    "dist",
+    "DATA-LICENSE.txt",
+    "THIRD-PARTY-NOTICES.txt"
+  ],
+  "scripts": {
+    "build": "npm run build:data && npm run build:js",
+    "build:data": "node scripts/build.ts",
+    "build:js": "esbuild src/TimezoneClient.ts --bundle --platform=browser --format=esm --target=es2022 --minify --outfile=dist/TimezoneClient.js && tsc",
+    "test": "node --test scripts/smoke.test.mjs",
+    "prepack": "npm run build"
+  },
+  "devDependencies": {
+    "brotli": "1.3.3",
+    "esbuild": "0.28.2",
+    "robust-predicates": "3.0.3",
+    "typescript": "5.9.3"
+  }
+}
