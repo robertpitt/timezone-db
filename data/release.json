@@ -1,0 +1,11 @@
+{
+  "release": "2026f",
+  "source_sha256": "838b3c9161e09ee944edb64cc4d9e4d2eb3ad0a3ec3d8d6a1520a5f8f6e21ac9",
+  "prepared_sha256": "d94f39ea86b47e03fdff64c8d0d37ca2d9cc9160c6975e6e8a9e01faa601ee23",
+  "binary_sha256": "41772f5ad8ca107058c10f56049019a6fdc60ee20286750d3c10e1a7747d157a",
+  "checked_at": "2026-11-20",
+  "zones": 444,
+  "polygons": 1356,
+  "rings": 2148,
+  "points_per_block": 8192
+}

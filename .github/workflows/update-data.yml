@@ -1,0 +1,106 @@
+name: Update timezone data
+
+on:
+  schedule:
+    - cron: '23 */6 * * *'
+  workflow_dispatch:
+
+concurrency:
+  group: upstream-timezone-data
+  cancel-in-progress: false
+
+jobs:
+  update:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: write
+      actions: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: main
+          fetch-depth: 2
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: '24'
+      - name: Check the latest upstream release
+        id: release
+        env:
+          TZDB_VERIFY_CURRENT: ${{ github.event_name == 'workflow_dispatch' }}
+        run: |
+          curl --fail --silent --show-error --location --retry 3 --retry-all-errors --max-time 30 \
+            https://api.github.com/repos/evansiroky/timezone-boundary-builder/releases/latest \
+            --output "$RUNNER_TEMP/upstream-release.json"
+          node tools/update/check-release.mjs "$RUNNER_TEMP/upstream-release.json" \
+            data/release.json "$RUNNER_TEMP/selected-release.json"
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7
+        if: steps.release.outputs.rebuild == 'true'
+        with:
+          python-version: '3.13'
+      - name: Prepare and test the new snapshot
+        if: steps.release.outputs.rebuild == 'true'
+        env:
+          TZDB_DOWNLOAD_URL: ${{ steps.release.outputs.url }}
+          TZDB_ASSET_URL: ${{ steps.release.outputs.asset_url }}
+        run: |
+          npm ci --prefix tools/update --ignore-scripts --no-audit --no-fund
+          python3 -m pip install --only-binary=:all: -r tools/update/requirements.txt
+          archive="$RUNNER_TEMP/upstream-world.zip"
+          if ! curl --fail --silent --show-error --location --retry 2 --retry-all-errors --max-time 180 \
+              --output "$archive" "$TZDB_DOWNLOAD_URL"; then
+            curl --fail --silent --show-error --location --retry 2 --retry-all-errors --max-time 180 \
+              --header 'Accept: application/octet-stream' --output "$archive" "$TZDB_ASSET_URL"
+          fi
+          next="$RUNNER_TEMP/next-data"
+          node --max-old-space-size=4096 tools/update/prepare.mjs "$RUNNER_TEMP/selected-release.json" "$archive" "$next"
+          cp "$next/world.tzdb" "$next/world.topo.json.br" "$next/release.json" data/
+          npm ci --ignore-scripts
+          npm run build
+          npm test
+      - name: Record the periodic upstream check
+        if: steps.release.outputs.checkpoint == 'true'
+        run: |
+          node --input-type=module - <<'JS'
+          import { readFileSync, writeFileSync } from 'node:fs';
+          const path = 'data/release.json';
+          const data = JSON.parse(readFileSync(path, 'utf8'));
+          data.checked_at = new Date().toISOString().slice(0, 10);
+          writeFileSync(path, JSON.stringify(data, null, 2) + '\n');
+          JS
+      - name: Commit the verified snapshot
+        if: steps.release.outputs.changed == 'true' || steps.release.outputs.checkpoint == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TZDB_RELEASE: ${{ steps.release.outputs.release }}
+          TZDB_CHANGED: ${{ steps.release.outputs.changed }}
+        run: |
+          if [ "$TZDB_CHANGED" = true ]; then
+            message="Update timezone database to $TZDB_RELEASE"
+          else
+            message="Record upstream timezone release check"
+          fi
+          git add -- data/release.json data/world.topo.json.br data/world.tzdb
+          git -c user.name='github-actions[bot]' \
+              -c user.email='41898282+github-actions[bot]@users.noreply.github.com' commit -m "$message"
+          git -c credential.helper= -c 'credential.helper=!gh auth git-credential' push origin HEAD:main
+      - name: Trigger the Pages and npm package build
+        if: steps.release.outputs.changed == 'true' || github.event_name == 'schedule'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TZDB_CHANGED: ${{ steps.release.outputs.changed }}
+        run: |
+          # A bot push does not trigger the normal push workflow. On subsequent
+          # checks, recover a missed or unsuccessful build for the data commit.
+          if [ "$TZDB_CHANGED" != true ] && git diff --quiet HEAD^ HEAD -- data/world.tzdb; then
+            exit 0
+          fi
+          sha=$(git rev-parse HEAD)
+          state=$(gh run list --workflow ci.yml --branch main --commit "$sha" --limit 1 \
+            --json status,conclusion --jq '.[0] | if .status == "completed" then .conclusion else .status end')
+          case "$state" in
+            success|queued|in_progress|requested|waiting|pending) exit 0 ;;
+          esac
+          gh workflow run ci.yml --ref main

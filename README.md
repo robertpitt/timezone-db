@@ -1,6 +1,6 @@
 # timezone-db
 
-Look up an IANA timezone by longitude and latitude using a single offline binary. The world database includes all 444 timezone IDs in the 2026f release with oceans and fits under 1 MB.
+Look up an IANA timezone by longitude and latitude using a single offline binary. The world database includes every timezone in the imported release with oceans and fits under 1 MB.
 
 ## Demo
 
@@ -41,9 +41,15 @@ Supply coordinates in decimal degrees, longitude first. lookupAll returns every 
 
 GitHub Actions builds and tests dist, then uploads the npm tarball as the npm-package artifact. The package name is @robertpitt/timezone-db and publication is manual.
 
+## Automated data updates
+
+The **Update timezone data** workflow checks Timezone Boundary Builder every six hours. It verifies a new archive against the upstream checksum and rebuilds with the 150 m simplification profile and selective coordinate rounding. The update must preserve every timezone, polygon part, and ring, pass the geometry and lookup tests, and fit under 1 MB.
+
+After validation, the workflow commits the binary, prepared topology, and release metadata to main and starts the Pages and npm package build. A manual run also verifies the current release. During longer intervals between releases, the workflow records a check every 42 days to keep the schedule active.
+
 ## Data and attribution
 
-The checked-in build input is a prepared TopoJSON snapshot of the comprehensive 2026f release with oceans. It retains all timezone IDs, polygon parts, and holes. Boundary simplification and selective coordinate rounding can affect lookups near borders. [Timezone Boundary Builder 2026f](https://github.com/evansiroky/timezone-boundary-builder/releases/tag/2026f)
+The release manifest records the source version and checksums. The checked-in TopoJSON snapshot is the build input, and the build verifies the resulting binary against the committed copy. Boundary simplification and selective coordinate rounding can affect lookups near borders. [Release manifest](data/release.json) · [Timezone Boundary Builder releases](https://github.com/evansiroky/timezone-boundary-builder/releases)
 
 Timezone boundary data © OpenStreetMap contributors. The prepared topology and the derived binary are distributed under the Open Data Commons Open Database License 1.0. [Data license](DATA-LICENSE.txt) · [OpenStreetMap attribution](https://www.openstreetmap.org/copyright)
 

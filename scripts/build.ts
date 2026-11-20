@@ -1,5 +1,6 @@
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
+import { createHash } from 'node:crypto';
 import { brotliCompressSync, brotliDecompressSync, constants } from 'node:zlib';
 import {
   HEADER_BYTES, FANOUT, POLYGON_BYTES, BLOCK_BYTES, MAGIC, COARSE_SCALE,
@@ -212,20 +213,28 @@ function build(input: Topology, release: string, pointTarget: number): Buffer {
 }
 
 const root = resolve(import.meta.dirname, '..');
+const dataPath = resolve(root, 'data');
+const snapshot = process.argv.length === 2;
+const manifest = JSON.parse(readFileSync(resolve(dataPath, 'release.json'), 'utf8'));
 const [
-  source = resolve(root, 'data', '2026f.topo.json.br'),
+  source = resolve(dataPath, 'world.topo.json.br'),
   output = resolve(root, 'dist', 'world.tzdb'),
-  release = '2026f',
-  perBlock = '8192',
+  release = manifest.release,
+  perBlock = String(manifest.points_per_block),
 ] = process.argv.slice(2);
 const pointTarget = Number(perBlock);
 if (!source || !output || !Number.isInteger(pointTarget) || pointTarget < 64) {
   throw new Error('Usage: build.ts INPUT_TOPOJSON OUTPUT_TZDB [RELEASE] [POINTS_PER_BLOCK]');
 }
 const contents = readFileSync(source);
+const checksum = (data: Buffer) => createHash('sha256').update(data).digest('hex');
+if (snapshot && checksum(contents) !== manifest.prepared_sha256) throw new Error('Prepared topology checksum mismatch');
 const input = JSON.parse((source.endsWith('.br') ? brotliDecompressSync(contents) : contents).toString('utf8')) as Topology;
 const bytes = build(input, release, pointTarget);
 if (bytes.length >= 1_000_000) throw new Error('1 MB budget exceeded: ' + bytes.length);
+if (snapshot && (checksum(bytes) !== manifest.binary_sha256 || !bytes.equals(readFileSync(resolve(dataPath, 'world.tzdb'))))) {
+  throw new Error('Rebuilt binary differs from the committed snapshot');
+}
 mkdirSync(dirname(output), { recursive: true });
 writeFileSync(output, bytes);
 console.log({ bytes: bytes.length, payloadOffset: bytes.readUInt32LE(bytes.readUInt32LE(44)), blocks: bytes.readUInt16LE(18) });

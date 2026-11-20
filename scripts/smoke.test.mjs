@@ -4,12 +4,14 @@ import test from 'node:test';
 import { TimezoneClient } from '@robertpitt/timezone-db';
 
 const bytes = readFileSync(new URL(import.meta.resolve('@robertpitt/timezone-db/world.tzdb')));
+const manifest = JSON.parse(readFileSync(new URL('../data/release.json', import.meta.url), 'utf8'));
 
 test('reads the packaged world database from a byte view', () => {
   assert.ok(bytes.byteLength < 1_000_000);
   const padded = new Uint8Array(bytes.length + 13);
   padded.set(bytes, 13);
   const db = new TimezoneClient(padded.subarray(13));
+  assert.equal(db.release, manifest.release);
   assert.equal(db.getStats().decodedBlocks, 0);
   assert.equal(db.lookup(-0.1278, 51.5074), 'Europe/London');
   assert.equal(db.lookup(77.209, 28.6139), 'Asia/Kolkata');
@@ -38,7 +40,7 @@ test('reconstructs the closed polygon rings for the map', () => {
       rings++;
     }
   }
-  assert.equal(zones.size, 444);
-  assert.equal(parts, 1356);
-  assert.equal(rings, 2148);
+  assert.equal(zones.size, manifest.zones);
+  assert.equal(parts, manifest.polygons);
+  assert.equal(rings, manifest.rings);
 });

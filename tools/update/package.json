@@ -1,0 +1,8 @@
+{
+  "name": "timezone-db-data-tools",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "mapshaper": "0.8.5"
+  }
+}
