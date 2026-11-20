@@ -2,6 +2,12 @@
 
 Look up an IANA timezone by longitude and latitude using a single offline binary. The world database includes all 444 timezone IDs in the 2026f release with oceans and fits under 1 MB.
 
+## Demo
+
+Click the map, enter coordinates, or pick a city to see the timezone and local time. The page reads and draws the boundaries from the same world.tzdb used for lookups. [Open the GitHub Pages demo](https://robertpitt.github.io/timezone-db/)
+
+To preview locally, run `npm run build:pages` and serve `build/pages` with a static HTTP server.
+
 ## Build
 
 Use Node.js 24 to build from the prepared world topology in data.

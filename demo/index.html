@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#0d1524">
+  <meta name="description" content="Explore the world's timezone boundaries and look up local time using timezone-db in your browser.">
+  <title>World time zones | timezone-db</title>
+  <link rel="stylesheet" href="./styles.css">
+  <script type="module" src="./app.js"></script>
+</head>
+<body>
+  <header class="topbar">
+    <div class="shell topbar-inner">
+      <a class="brand" href="./"><span class="clock-mark" aria-hidden="true"></span>timezone-db</a>
+      <nav aria-label="Project">
+        <a class="nav-link" href="https://github.com/robertpitt/timezone-db">GitHub</a>
+        <a class="download" href="./world.tzdb" download>Download binary</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="shell">
+    <header class="page-heading">
+      <div>
+        <h1>World time zones</h1>
+        <p>Click the map or enter coordinates to find the local time.</p>
+      </div>
+      <p id="data-summary" class="data-summary" hidden></p>
+    </header>
+
+    <div class="workspace">
+      <figure class="atlas">
+        <div class="map-frame">
+          <canvas id="world-map" tabindex="0" aria-label="World timezone map. Use the arrow keys to pan, plus and minus to zoom, and Enter to look up the centre."></canvas>
+          <div class="map-tools" aria-label="Map controls">
+            <div class="zoom-buttons">
+              <button id="zoom-in" type="button" aria-label="Zoom in" disabled>+</button>
+              <button id="zoom-out" type="button" aria-label="Zoom out" disabled>−</button>
+            </div>
+            <button id="reset-map" type="button" disabled>Reset</button>
+          </div>
+          <div id="map-status" class="map-message" role="status">
+            <span id="map-status-text">Loading timezone boundaries…</span>
+            <button id="retry" type="button" hidden>Retry</button>
+          </div>
+          <span id="map-selection" class="map-selection" hidden></span>
+        </div>
+        <figcaption class="atlas-footer">
+          <div class="legend">
+            <span class="legend-title">UTC offset</span>
+            <div class="legend-scale">
+              <div class="legend-colors" aria-hidden="true"></div>
+              <div class="legend-labels"><span>−12h</span><span>0h</span><span>+14h</span></div>
+            </div>
+          </div>
+          <p class="map-hint">Drag to pan · Scroll to zoom</p>
+        </figcaption>
+      </figure>
+
+      <aside class="lookup" aria-label="Timezone lookup">
+        <div class="selection" aria-live="polite">
+          <p class="section-label" id="selection-label">Selected timezone</p>
+          <h2 id="timezone-result">Loading…</h2>
+          <p id="other-matches" class="other-matches" hidden></p>
+        </div>
+
+        <div class="clock-card">
+          <div class="clock-row">
+            <time id="local-time">--:--:--</time>
+            <span id="utc-offset" hidden></span>
+          </div>
+          <p id="local-date">Local time at the selected point</p>
+        </div>
+
+        <form id="lookup-form">
+          <fieldset id="lookup-fields" disabled>
+            <div class="coordinate-fields">
+              <label for="longitude">Longitude <span>°</span>
+                <input id="longitude" name="longitude" type="number" inputmode="decimal" min="-180" max="180" step="any" value="-0.1278" required>
+              </label>
+              <label for="latitude">Latitude <span>°</span>
+                <input id="latitude" name="latitude" type="number" inputmode="decimal" min="-90" max="90" step="any" value="51.5074" required>
+              </label>
+            </div>
+            <button class="lookup-button" type="submit">Look up timezone</button>
+          </fieldset>
+        </form>
+
+        <div class="quick-picks">
+          <p class="section-label">Try a city</p>
+          <div class="city-buttons" id="city-buttons"></div>
+        </div>
+      </aside>
+    </div>
+
+    <footer class="site-footer">
+      <p>Boundaries from <a href="https://github.com/evansiroky/timezone-boundary-builder">Timezone Boundary Builder</a> · <a href="https://www.openstreetmap.org/copyright">© OpenStreetMap contributors</a></p>
+      <p>Simplified boundaries may affect results near borders. <a href="./DATA-LICENSE.txt">ODbL data license</a></p>
+    </footer>
+  </main>
+  <noscript>This demo needs JavaScript to draw the map and look up timezones.</noscript>
+</body>
+</html>

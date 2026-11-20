@@ -22,3 +22,23 @@ test('reads the packaged world database from a byte view', () => {
 test('rejects a truncated binary', () => {
   assert.throws(() => new TimezoneClient(bytes.subarray(0, -1)), /Invalid/);
 });
+
+test('reconstructs the closed polygon rings for the map', () => {
+  const db = new TimezoneClient(bytes, 64);
+  const zones = new Set();
+  let parts = 0;
+  let rings = 0;
+  for (const { tzid, rings: polygonRings } of db.polygonShapes()) {
+    zones.add(tzid);
+    parts++;
+    for (const ring of polygonRings) {
+      assert.ok(ring.length >= 8);
+      assert.equal(ring[0], ring[ring.length - 2]);
+      assert.equal(ring[1], ring[ring.length - 1]);
+      rings++;
+    }
+  }
+  assert.equal(zones.size, 444);
+  assert.equal(parts, 1356);
+  assert.equal(rings, 2148);
+});

@@ -24,6 +24,7 @@
     "build": "npm run build:data && npm run build:js",
     "build:data": "node scripts/build.ts",
     "build:js": "esbuild src/TimezoneClient.ts --bundle --platform=browser --format=esm --target=es2022 --minify --outfile=dist/TimezoneClient.js && tsc",
+    "build:pages": "npm run build && node scripts/build-pages.mjs",
     "test": "node --test scripts/smoke.test.mjs",
     "prepack": "npm run build"
   },

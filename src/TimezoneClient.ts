@@ -6,6 +6,12 @@ import {
 } from './format.ts';
 
 type Block = { positions: Int32Array; offsets: Uint32Array };
+export type TimezonePolygon = {
+  tzid: string;
+  /** Closed rings of interleaved longitude and latitude in degrees, exterior first. */
+  rings: Float64Array[];
+};
+
 const utf8 = new TextDecoder('utf-8', { fatal: true });
 
 export class TimezoneClient {
@@ -100,6 +106,33 @@ export class TimezoneClient {
     return { bytes: this.bytes.length, blocks: this.blocks, cachedBlocks: this.cache.size, decodedBlocks: this.decoded };
   }
 
+  *polygonShapes(): IterableIterator<TimezonePolygon> {
+    for (let part = 0; part < this.polygons; part++) {
+      const offset = this.sections[1] + part * POLYGON_BYTES;
+      const [first, end] = this.polygonRings(part);
+      const rings: Float64Array[] = [];
+      for (let ring = first; ring < end; ring++) {
+        const [start, stop] = this.ringReferences(ring);
+        const positions: number[] = [];
+        for (let i = start; i < stop; i++) {
+          const ref = this.view.getInt16(this.sections[4] + i * 2, true);
+          const reversed = ref < 0;
+          const id = reversed ? ~ref : ref;
+          const { chart, first: begin, last } = this.arc(id);
+          const step = reversed ? -2 : 2;
+          const origin = reversed ? last - 2 : begin;
+          const limit = reversed ? begin - 2 : last;
+          // Consecutive arcs share one endpoint.
+          for (let at = i === start ? origin : origin + step; at !== limit; at += step) {
+            positions.push(chart[at] / MICRODEGREES, chart[at + 1] / MICRODEGREES);
+          }
+        }
+        rings.push(Float64Array.from(positions));
+      }
+      yield { tzid: this.zoneName(this.u16(offset + 16)), rings };
+    }
+  }
+
   private u16(offset: number): number {
     return this.view.getUint16(offset, true);
   }
@@ -135,9 +168,7 @@ export class TimezoneClient {
     }
     const zone = this.u16(offset + 16);
     if (matches.has(zone)) return;
-    const first = this.u16(offset + 18);
-    const end = id + 1 === this.polygons ? this.rings : this.u16(offset + POLYGON_BYTES + 18);
-    if (first >= end || end > this.rings) throw new Error('Invalid polygon rings');
+    const [first, end] = this.polygonRings(id);
     const exterior = this.ring(first, x, y);
     if (exterior === 0) return;
     for (let i = first + 1; i < end; i++) {
@@ -146,10 +177,23 @@ export class TimezoneClient {
     matches.add(zone);
   }
 
-  private ring(index: number, x: number, y: number): 0 | 1 | 2 {
+  private polygonRings(id: number): [number, number] {
+    const offset = this.sections[1] + id * POLYGON_BYTES;
+    const start = this.u16(offset + 18);
+    const end = id + 1 === this.polygons ? this.rings : this.u16(offset + POLYGON_BYTES + 18);
+    if (start >= end || end > this.rings) throw new Error('Invalid polygon rings');
+    return [start, end];
+  }
+
+  private ringReferences(index: number): [number, number] {
     const start = this.u16(this.sections[3] + index * 2);
     const end = this.u16(this.sections[3] + (index + 1) * 2);
     if (start >= end || this.sections[4] + end * 2 > this.arcIndex) throw new Error('Invalid ring references');
+    return [start, end];
+  }
+
+  private ring(index: number, x: number, y: number): 0 | 1 | 2 {
+    const [start, end] = this.ringReferences(index);
     let inside = false;
     for (let i = start; i < end; i++) {
       const ref = this.view.getInt16(this.sections[4] + i * 2, true);
@@ -184,6 +228,7 @@ export class TimezoneClient {
   }
 
   private arc(id: number) {
+    if (id >= this.arcs) throw new Error('Invalid arc reference');
     let low = 0, high = this.blocks;
     while (low + 1 < high) {
       const middle = (low + high) >>> 1;
