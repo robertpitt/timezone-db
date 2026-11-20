@@ -2,11 +2,25 @@
 
 Look up an IANA timezone by longitude and latitude using a single offline binary. The world database includes every timezone in the imported release with oceans and fits under 1 MB.
 
+[![The timezone-db demo showing the world map and a London timezone lookup](https://raw.githubusercontent.com/robertpitt/timezone-db/main/docs/demo.png)](https://robertpitt.github.io/timezone-db/)
+
 ## Demo
 
 Click the map, enter coordinates, or pick a city to see the timezone and local time. The page reads and draws the boundaries from the same world.tzdb used for lookups. [Open the GitHub Pages demo](https://robertpitt.github.io/timezone-db/)
 
 To preview locally, run `npm run build:pages` and serve `build/pages` with a static HTTP server.
+
+## Comparison
+
+The versions below use Timezone Boundary Builder 2026f.
+
+| Project | Lookup assets | Unpacked npm package | Runtime | Lookup behavior |
+| --- | --- | ---: | --- | --- |
+| `timezone-db` 0.1.0 preview | 947 KB `.tzdb` + 102 KB JavaScript | 1.10 MB | Browsers, Node.js, Deno, Bun | Queries simplified polygons. `lookup` returns the first match or `null`, and `lookupAll` returns every match. `polygonShapes` exposes the geometry for drawing. |
+| [`geo-tz` 8.1.11](https://github.com/evansiroky/node-geo-tz/tree/v8.1.11) | 31.17 MB of data for `geo-tz/all` | 74.48 MB | Node.js with disk access | Performs exact lookups against upstream boundaries and falls back to ocean zones. `find` returns an array of timezone IDs. |
+| [`@photostructure/tz-lookup` 11.8.0](https://github.com/photostructure/tz-lookup/tree/11.8.0) | 73.4 KB `tz.js` with code and data | 88.0 KB | Browsers and Node.js | Queries a lossy quadtree and returns one estimated timezone ID. |
+
+Sizes use decimal units and are measured from the npm tarball contents before compression. The full `geo-tz` package contains three datasets. The `timezone-db` size comes from a locally packed build.
 
 ## Build
 
